@@ -1,0 +1,34 @@
+{
+  "name": "mcp-servers-collection",
+  "version": "1.0.0",
+  "description": "A collection of Model Context Protocol (MCP) servers for AI assistants",
+  "private": false,
+  "scripts": {
+    "install-all": "cd customer-mcp-server && npm install && cd ../hrm-mcp-server && npm install",
+    "test-customer": "cd customer-mcp-server && npm run start",
+    "test-hrm": "cd hrm-mcp-server && npm run start",
+    "build-all": "cd customer-mcp-server && npm run build && cd ../hrm-mcp-server && npm run build",
+    "docker-build-all": "cd customer-mcp-server && docker build -t customer-mcp-server . && cd ../hrm-mcp-server && docker build -t hrm-mcp-server ."
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "ai",
+    "claude",
+    "assistant",
+    "crm",
+    "hrm",
+    "demo",
+    "artificial-data"
+  ],
+  "author": "MCP Demo Collection",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/mcp-servers-collection.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/mcp-servers-collection/issues"
+  },
+  "homepage": "https://github.com/your-username/mcp-servers-collection#readme"
+}

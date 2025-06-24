@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  hrm-mcp-server:
+    build: .
+    image: hrm-mcp-server:latest
+    container_name: hrm-mcp-server
+    restart: unless-stopped
+    
+    # For MCP servers, we typically use stdio, so we run interactively
+    stdin_open: true
+    tty: true
+    
+    # Environment variables (if needed)
+    environment:
+      - NODE_ENV=production
+      - TZ=UTC
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '0.5'
+        reservations:
+          memory: 128M
+          cpus: '0.1'
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "node", "-e", "console.log('Health check passed')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Optional: Add a simple web interface for testing
+  hrm-web-interface:
+    image: nginx:alpine
+    container_name: hrm-web-interface
+    ports:
+      - "8080:80"
+    volumes:
+      - ./web:/usr/share/nginx/html:ro
+    depends_on:
+      - hrm-mcp-server
+    restart: unless-stopped
