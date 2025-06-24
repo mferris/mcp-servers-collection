@@ -31,6 +31,23 @@ Provides AI assistants with access to Human Resource Management data.
 
 **Tools:** `search_employees`, `get_employee_details`, `get_department_info`, `salary_analysis`, `time_off_summary`, `performance_dashboard`
 
+### 3. Engineering MCP Server
+**Location:** `./engineering-mcp-server/`
+
+Provides AI assistants with access to large-scale engineering organization data (8000+ engineers).
+
+**Features:**
+- Engineer search by team, role, level, and skills
+- Project status and health tracking
+- Repository metrics (security, quality, performance)
+- Deployment analytics and history
+- Incident analysis and response tracking
+- Code review metrics and queue management
+- Oncall schedule management
+- Team health and productivity metrics
+
+**Tools:** `search_engineers`, `get_project_status`, `repository_metrics`, `deployment_dashboard`, `incident_analysis`, `code_review_metrics`, `oncall_schedule`, `team_health_metrics`
+
 ## Quick Start
 
 ### Prerequisites
@@ -46,7 +63,7 @@ Provides AI assistants with access to Human Resource Management data.
    cd mcp-servers-collection
    ```
 
-2. **Install dependencies for both servers:**
+2. **Install dependencies for all servers:**
    ```bash
    # Customer MCP Server
    cd customer-mcp-server
@@ -55,6 +72,11 @@ Provides AI assistants with access to Human Resource Management data.
    
    # HRM MCP Server
    cd hrm-mcp-server
+   npm install
+   cd ..
+   
+   # Engineering MCP Server
+   cd engineering-mcp-server
    npm install
    cd ..
    ```
@@ -69,28 +91,40 @@ Provides AI assistants with access to Human Resource Management data.
    # Test HRM server
    cd ../hrm-mcp-server
    npm run start
-   # Should see: "HRM MCP Server running on stdio"
+   # Should see: "Unified HRM & Engineering MCP Server running on stdio"
+   
+   # Test Engineering server
+   cd ../engineering-mcp-server
+   npm run start
+   # Should see: "Engineering MCP Server running on stdio"
    ```
 
 ## Claude Desktop Configuration
 
-Add both servers to your `claude_desktop_config.json`:
+Add all three servers to your `claude_desktop_config.json`:
 
 ```json
 {
   "mcpServers": {
     "customer-data": {
-      "command": "/usr/local/bin/node",
+      "command": "node",
       "args": [
         "/path/to/mcp-servers-collection/customer-mcp-server/node_modules/.bin/tsx",
         "/path/to/mcp-servers-collection/customer-mcp-server/src/server.ts"
       ]
     },
     "hrm-data": {
-      "command": "/usr/local/bin/node",
+      "command": "node",
       "args": [
         "/path/to/mcp-servers-collection/hrm-mcp-server/node_modules/.bin/tsx",
         "/path/to/mcp-servers-collection/hrm-mcp-server/src/server.ts"
+      ]
+    },
+    "engineering-data": {
+      "command": "node",
+      "args": [
+        "/path/to/mcp-servers-collection/engineering-mcp-server/node_modules/.bin/tsx",
+        "/path/to/mcp-servers-collection/engineering-mcp-server/src/server.ts"
       ]
     }
   }
