@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 
 /**
- * HRM MCP Server
+ * Unified HRM & Engineering MCP Server
  * 
- * This server provides AI assistants with access to Human Resource Management data,
- * enabling natural language queries about employees, departments, payroll, and performance.
+ * This server provides AI assistants with access to Human Resource Management 
+ * and Engineering organization data, enabling comprehensive queries about 
+ * employees, projects, teams, performance, and engineering metrics.
  * 
  * Business Value:
  * - HR managers can ask "Show me all employees with upcoming performance reviews"
- * - Executives can query "What's our average salary by department?"
+ * - Engineering managers can query "Which engineers are working on blocked projects?"
+ * - Executives can ask "What's our engineering team productivity and costs?"
+ * - Directors can query "Show me team health metrics and incident response times"
  * - Managers can ask "Which employees have the most vacation days remaining?"
- * - Compliance teams can query "List all employees with expired certifications"
+ * - Tech leads can query "What's our code review velocity and deployment frequency?"
  */
 
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
@@ -22,7 +25,7 @@ import {
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
-// HRM Data Types
+// Unified HRM & Engineering Data Types
 interface Employee {
   id: string;
   firstName: string;
@@ -41,6 +44,12 @@ interface Employee {
     phone: string;
     relationship: string;
   };
+  // Engineering-specific fields
+  engineeringLevel?: 'L3' | 'L4' | 'L5' | 'L6' | 'L7' | 'L8' | 'L9' | 'L10';
+  role?: 'SWE' | 'SRE' | 'Data' | 'ML' | 'Security' | 'DevRel' | 'QA' | 'Manager' | 'Director' | 'VP' | 'Architect';
+  skills?: string[];
+  currentProjects?: string[];
+  isOncall?: boolean;
 }
 
 interface Department {
@@ -89,7 +98,86 @@ interface PerformanceReview {
   status: 'scheduled' | 'in_progress' | 'completed';
 }
 
-// Mock HRM database
+// Engineering Data Types
+interface Project {
+  id: string;
+  name: string;
+  description: string;
+  status: 'Planning' | 'Active' | 'Blocked' | 'Completed' | 'Cancelled';
+  priority: 'P0' | 'P1' | 'P2' | 'P3';
+  owner: string;
+  team: string;
+  startDate: string;
+  targetDate: string;
+  actualDate?: string;
+  progress: number; // 0-100
+  budget: number;
+  risks: string[];
+  dependencies: string[];
+}
+
+interface Repository {
+  id: string;
+  name: string;
+  type: 'Service' | 'Library' | 'Tool' | 'Frontend' | 'Mobile' | 'Data' | 'ML' | 'Infrastructure';
+  language: string;
+  team: string;
+  linesOfCode: number;
+  contributors: number;
+  lastCommit: string;
+  deploymentFreq: number; // per week
+  techDebtScore: number; // 1-10
+  securityVulns: {
+    critical: number;
+    high: number;
+    medium: number;
+    low: number;
+  };
+  testCoverage: number; // percentage
+  uptime: number; // percentage
+}
+
+interface Deployment {
+  id: string;
+  repository: string;
+  version: string;
+  environment: 'dev' | 'staging' | 'canary' | 'production';
+  deployer: string;
+  timestamp: string;
+  duration: number; // minutes
+  status: 'success' | 'failed' | 'rolled_back';
+  rollbackReason?: string;
+}
+
+interface Incident {
+  id: string;
+  title: string;
+  severity: 'SEV0' | 'SEV1' | 'SEV2' | 'SEV3' | 'SEV4';
+  status: 'Open' | 'Investigating' | 'Mitigating' | 'Resolved' | 'Post-mortem';
+  service: string;
+  assignee: string;
+  reporter: string;
+  createdAt: string;
+  resolvedAt?: string;
+  mttr: number; // minutes
+  impact: string;
+  rootCause?: string;
+}
+
+interface CodeReview {
+  id: string;
+  repository: string;
+  author: string;
+  reviewers: string[];
+  title: string;
+  linesChanged: number;
+  createdAt: string;
+  mergedAt?: string;
+  status: 'Open' | 'Approved' | 'Changes Requested' | 'Merged' | 'Closed';
+  reviewTime: number; // hours
+}
+
+// Mock Unified HRM & Engineering Database
 const hrmDatabase = {
   employees: [
     {
@@ -109,7 +197,13 @@ const hrmDatabase = {
         name: "Jane Smith",
         phone: "555-0102",
         relationship: "Spouse"
-      }
+      },
+      // Engineering fields
+      engineeringLevel: "L6" as const,
+      role: "SWE" as const,
+      skills: ["Python", "Java", "Elasticsearch", "Kafka", "AWS"],
+      currentProjects: ["proj_001"],
+      isOncall: false
     },
     {
       id: "emp_002",
@@ -338,7 +432,103 @@ const hrmDatabase = {
       nextReviewDate: "2024-09-25",
       status: "scheduled" as const
     }
-  ] as PerformanceReview[]
+  ] as PerformanceReview[],
+
+  // Engineering Data
+  projects: [
+    {
+      id: "proj_001", name: "Search Relevance V3", description: "Next generation search ranking algorithm",
+      status: "Active", priority: "P0", owner: "emp_001", team: "Engineering",
+      startDate: "2024-01-15", targetDate: "2024-08-15", progress: 65,
+      budget: 500000, risks: ["ML model performance", "Data pipeline complexity"], dependencies: []
+    },
+    {
+      id: "proj_002", name: "Mobile App Redesign", description: "Complete mobile app UI/UX overhaul",
+      status: "Planning", priority: "P1", owner: "emp_002", team: "Marketing",
+      startDate: "2024-07-01", targetDate: "2024-12-31", progress: 10,
+      budget: 300000, risks: ["User adoption", "Development timeline"], dependencies: ["proj_001"]
+    },
+    {
+      id: "proj_003", name: "Customer Analytics Platform", description: "Real-time customer behavior analytics",
+      status: "Blocked", priority: "P2", owner: "emp_004", team: "HR",
+      startDate: "2024-03-01", targetDate: "2024-10-15", progress: 35,
+      budget: 450000, risks: ["Data privacy compliance", "Integration complexity"], dependencies: []
+    }
+  ] as Project[],
+
+  repositories: [
+    {
+      id: "repo_001", name: "search-service", type: "Service", language: "Python",
+      team: "Engineering", linesOfCode: 125000, contributors: 8,
+      lastCommit: "2024-06-20T14:30:00Z", deploymentFreq: 5, techDebtScore: 6,
+      securityVulns: { critical: 0, high: 2, medium: 8, low: 15 },
+      testCoverage: 87, uptime: 99.95
+    },
+    {
+      id: "repo_002", name: "mobile-app", type: "Mobile", language: "React Native",
+      team: "Marketing", linesOfCode: 95000, contributors: 6,
+      lastCommit: "2024-06-19T16:45:00Z", deploymentFreq: 2, techDebtScore: 8,
+      securityVulns: { critical: 1, high: 3, medium: 12, low: 20 },
+      testCoverage: 76, uptime: 99.9
+    },
+    {
+      id: "repo_003", name: "analytics-platform", type: "Data", language: "Python",
+      team: "HR", linesOfCode: 85000, contributors: 4,
+      lastCommit: "2024-06-18T11:20:00Z", deploymentFreq: 3, techDebtScore: 5,
+      securityVulns: { critical: 0, high: 1, medium: 6, low: 11 },
+      testCoverage: 82, uptime: 99.8
+    }
+  ] as Repository[],
+
+  deployments: [
+    {
+      id: "deploy_001", repository: "search-service", version: "v2.4.1",
+      environment: "production", deployer: "emp_001", timestamp: "2024-06-21T10:30:00Z",
+      duration: 12, status: "success"
+    },
+    {
+      id: "deploy_002", repository: "mobile-app", version: "v1.8.0",
+      environment: "staging", deployer: "emp_002", timestamp: "2024-06-20T15:45:00Z",
+      duration: 18, status: "success"
+    },
+    {
+      id: "deploy_003", repository: "analytics-platform", version: "v1.2.3",
+      environment: "production", deployer: "emp_004", timestamp: "2024-06-19T14:20:00Z",
+      duration: 25, status: "failed", rollbackReason: "Database migration issues"
+    }
+  ] as Deployment[],
+
+  incidents: [
+    {
+      id: "inc_001", title: "Search API high latency", severity: "SEV1",
+      status: "Resolved", service: "search-service", assignee: "emp_001",
+      reporter: "emp_002", createdAt: "2024-06-20T14:30:00Z",
+      resolvedAt: "2024-06-20T16:45:00Z", mttr: 135,
+      impact: "Search response time increased by 300%",
+      rootCause: "Database connection pool exhaustion"
+    },
+    {
+      id: "inc_002", title: "Mobile app login failures", severity: "SEV2",
+      status: "Investigating", service: "mobile-app", assignee: "emp_002",
+      reporter: "emp_001", createdAt: "2024-06-21T09:15:00Z", mttr: 0,
+      impact: "15% of users unable to login"
+    }
+  ] as Incident[],
+
+  codeReviews: [
+    {
+      id: "cr_001", repository: "search-service", author: "emp_001",
+      reviewers: ["emp_002"], title: "Optimize search query processing",
+      linesChanged: 245, createdAt: "2024-06-20T09:30:00Z",
+      mergedAt: "2024-06-21T14:15:00Z", status: "Merged", reviewTime: 6.5
+    },
+    {
+      id: "cr_002", repository: "mobile-app", author: "emp_002",
+      reviewers: ["emp_001", "emp_004"], title: "Add biometric authentication",
+      linesChanged: 312, createdAt: "2024-06-19T16:00:00Z",
+      status: "Open", reviewTime: 0
+    }
+  ] as CodeReview[]
 };
 
 class HRMServer {
@@ -480,6 +670,72 @@ class HRMServer {
                 }
               }
             },
+          },
+          // Engineering Tools
+          {
+            name: 'get_project_status',
+            description: 'Get status of projects with filtering options',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                status: { type: 'string', enum: ['Planning', 'Active', 'Blocked', 'Completed', 'Cancelled'] },
+                priority: { type: 'string', enum: ['P0', 'P1', 'P2', 'P3'] },
+                team: { type: 'string', description: 'Filter by team' },
+                owner: { type: 'string', description: 'Filter by project owner' }
+              },
+            },
+          },
+          {
+            name: 'repository_metrics',
+            description: 'Get repository metrics including security, quality, and performance',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                team: { type: 'string', description: 'Filter by team' },
+                type: { type: 'string', description: 'Filter by repository type' },
+                language: { type: 'string', description: 'Filter by programming language' },
+                sortBy: { type: 'string', enum: ['techDebt', 'security', 'coverage', 'uptime'] }
+              },
+            },
+          },
+          {
+            name: 'deployment_dashboard',
+            description: 'Get deployment metrics and recent deployment history',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                repository: { type: 'string', description: 'Filter by repository' },
+                environment: { type: 'string', enum: ['dev', 'staging', 'canary', 'production'] },
+                status: { type: 'string', enum: ['success', 'failed', 'rolled_back'] },
+                timeframe: { type: 'string', enum: ['24h', '7d', '30d'], default: '7d' }
+              },
+            },
+          },
+          {
+            name: 'incident_analysis',
+            description: 'Analyze incidents with filtering and metrics',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                severity: { type: 'string', enum: ['SEV0', 'SEV1', 'SEV2', 'SEV3', 'SEV4'] },
+                status: { type: 'string', enum: ['Open', 'Investigating', 'Mitigating', 'Resolved', 'Post-mortem'] },
+                service: { type: 'string', description: 'Filter by service' },
+                assignee: { type: 'string', description: 'Filter by assignee' }
+              },
+            },
+          },
+          {
+            name: 'code_review_metrics',
+            description: 'Get code review metrics and current review queue',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                repository: { type: 'string', description: 'Filter by repository' },
+                author: { type: 'string', description: 'Filter by author' },
+                reviewer: { type: 'string', description: 'Filter by reviewer' },
+                status: { type: 'string', enum: ['Open', 'Approved', 'Changes Requested', 'Merged', 'Closed'] }
+              },
+            },
           }
         ],
       };
@@ -503,6 +759,17 @@ class HRMServer {
             return await this.getTimeOffSummary(args);
           case 'performance_dashboard':
             return await this.getPerformanceDashboard(args);
+          // Engineering tools
+          case 'get_project_status':
+            return await this.getProjectStatus(args);
+          case 'repository_metrics':
+            return await this.getRepositoryMetrics(args);
+          case 'deployment_dashboard':
+            return await this.getDeploymentDashboard(args);
+          case 'incident_analysis':
+            return await this.getIncidentAnalysis(args);
+          case 'code_review_metrics':
+            return await this.getCodeReviewMetrics(args);
           default:
             throw new Error(`Unknown tool: ${name}`);
         }
@@ -912,10 +1179,258 @@ class HRMServer {
     };
   }
 
+  // Engineering tool implementation methods
+  private async getProjectStatus(args: any) {
+    let projects = [...hrmDatabase.projects];
+
+    if (args.status) {
+      projects = projects.filter(p => p.status === args.status);
+    }
+
+    if (args.priority) {
+      projects = projects.filter(p => p.priority === args.priority);
+    }
+
+    if (args.team) {
+      projects = projects.filter(p => p.team.toLowerCase().includes(args.team.toLowerCase()));
+    }
+
+    if (args.owner) {
+      projects = projects.filter(p => p.owner === args.owner);
+    }
+
+    const summary = projects.reduce((acc, p) => {
+      acc[p.status] = (acc[p.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `**Project Status Report (${projects.length} projects)**\n\n` +
+                `**Status Summary:**\n` +
+                Object.entries(summary).map(([status, count]) => `• ${status}: ${count}`).join('\n') +
+                `\n\n**Project Details:**\n` +
+                projects.map(proj => 
+                  `• **${proj.name}** (${proj.id})\n` +
+                  `  Status: ${proj.status} | Priority: ${proj.priority} | Progress: ${proj.progress}%\n` +
+                  `  Owner: ${proj.owner} | Team: ${proj.team}\n` +
+                  `  Target: ${proj.targetDate} | Budget: $${proj.budget.toLocaleString()}\n` +
+                  `  Description: ${proj.description}\n` +
+                  (proj.risks.length > 0 ? `  Risks: ${proj.risks.join(', ')}\n` : '') +
+                  (proj.dependencies.length > 0 ? `  Dependencies: ${proj.dependencies.join(', ')}\n` : '')
+                ).join('\n'),
+        },
+      ],
+    };
+  }
+
+  private async getRepositoryMetrics(args: any) {
+    let repos = [...hrmDatabase.repositories];
+
+    if (args.team) {
+      repos = repos.filter(r => r.team.toLowerCase().includes(args.team.toLowerCase()));
+    }
+
+    if (args.type) {
+      repos = repos.filter(r => r.type.toLowerCase() === args.type.toLowerCase());
+    }
+
+    if (args.language) {
+      repos = repos.filter(r => r.language.toLowerCase() === args.language.toLowerCase());
+    }
+
+    if (args.sortBy) {
+      switch (args.sortBy) {
+        case 'techDebt':
+          repos.sort((a, b) => b.techDebtScore - a.techDebtScore);
+          break;
+        case 'security':
+          repos.sort((a, b) => (b.securityVulns.critical + b.securityVulns.high) - (a.securityVulns.critical + a.securityVulns.high));
+          break;
+        case 'coverage':
+          repos.sort((a, b) => a.testCoverage - b.testCoverage);
+          break;
+        case 'uptime':
+          repos.sort((a, b) => a.uptime - b.uptime);
+          break;
+      }
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `**Repository Metrics (${repos.length} repositories)**\n\n` +
+                repos.map(repo => 
+                  `• **${repo.name}** (${repo.type})\n` +
+                  `  Language: ${repo.language} | Team: ${repo.team}\n` +
+                  `  Lines of Code: ${repo.linesOfCode.toLocaleString()} | Contributors: ${repo.contributors}\n` +
+                  `  Test Coverage: ${repo.testCoverage}% | Tech Debt: ${repo.techDebtScore}/10\n` +
+                  `  Uptime: ${repo.uptime}% | Deploy Freq: ${repo.deploymentFreq}/week\n` +
+                  `  Security Vulns: ${repo.securityVulns.critical}C/${repo.securityVulns.high}H/${repo.securityVulns.medium}M/${repo.securityVulns.low}L\n` +
+                  `  Last Commit: ${new Date(repo.lastCommit).toLocaleDateString()}\n`
+                ).join('\n') +
+                `\n**Aggregated Metrics:**\n` +
+                `• Total LOC: ${repos.reduce((sum, r) => sum + r.linesOfCode, 0).toLocaleString()}\n` +
+                `• Avg Test Coverage: ${Math.round(repos.reduce((sum, r) => sum + r.testCoverage, 0) / repos.length)}%\n` +
+                `• Avg Tech Debt: ${(repos.reduce((sum, r) => sum + r.techDebtScore, 0) / repos.length).toFixed(1)}/10\n` +
+                `• Total Critical Vulns: ${repos.reduce((sum, r) => sum + r.securityVulns.critical, 0)}\n` +
+                `• Avg Uptime: ${(repos.reduce((sum, r) => sum + r.uptime, 0) / repos.length).toFixed(2)}%`,
+        },
+      ],
+    };
+  }
+
+  private async getDeploymentDashboard(args: any) {
+    let deployments = [...hrmDatabase.deployments];
+
+    if (args.repository) {
+      deployments = deployments.filter(d => d.repository.toLowerCase().includes(args.repository.toLowerCase()));
+    }
+
+    if (args.environment) {
+      deployments = deployments.filter(d => d.environment === args.environment);
+    }
+
+    if (args.status) {
+      deployments = deployments.filter(d => d.status === args.status);
+    }
+
+    const successRate = (deployments.filter(d => d.status === 'success').length / deployments.length * 100).toFixed(1);
+    const avgDuration = Math.round(deployments.reduce((sum, d) => sum + d.duration, 0) / deployments.length);
+
+    const statusBreakdown = deployments.reduce((acc, d) => {
+      acc[d.status] = (acc[d.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `**Deployment Dashboard (${deployments.length} deployments)**\n\n` +
+                `**Metrics:**\n` +
+                `• Success Rate: ${successRate}%\n` +
+                `• Average Duration: ${avgDuration} minutes\n` +
+                `• Status Breakdown: ${Object.entries(statusBreakdown).map(([s, c]) => `${s}: ${c}`).join(', ')}\n\n` +
+                `**Recent Deployments:**\n` +
+                deployments.slice(0, 10).map(deploy => 
+                  `• ${deploy.repository} v${deploy.version} → ${deploy.environment}\n` +
+                  `  Deployer: ${deploy.deployer} | Status: ${deploy.status}\n` +
+                  `  Duration: ${deploy.duration}min | Time: ${new Date(deploy.timestamp).toLocaleString()}\n` +
+                  (deploy.rollbackReason ? `  Rollback Reason: ${deploy.rollbackReason}\n` : '')
+                ).join('\n'),
+        },
+      ],
+    };
+  }
+
+  private async getIncidentAnalysis(args: any) {
+    let incidents = [...hrmDatabase.incidents];
+
+    if (args.severity) {
+      incidents = incidents.filter(i => i.severity === args.severity);
+    }
+
+    if (args.status) {
+      incidents = incidents.filter(i => i.status === args.status);
+    }
+
+    if (args.service) {
+      incidents = incidents.filter(i => i.service.toLowerCase().includes(args.service.toLowerCase()));
+    }
+
+    if (args.assignee) {
+      incidents = incidents.filter(i => i.assignee === args.assignee);
+    }
+
+    const avgMttr = Math.round(incidents.filter(i => i.mttr > 0).reduce((sum, i) => sum + i.mttr, 0) / incidents.filter(i => i.mttr > 0).length);
+    
+    const severityBreakdown = incidents.reduce((acc, i) => {
+      acc[i.severity] = (acc[i.severity] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `**Incident Analysis (${incidents.length} incidents)**\n\n` +
+                `**Metrics:**\n` +
+                `• Average MTTR: ${avgMttr} minutes\n` +
+                `• Severity Breakdown: ${Object.entries(severityBreakdown).map(([s, c]) => `${s}: ${c}`).join(', ')}\n\n` +
+                `**Incident Details:**\n` +
+                incidents.map(inc => 
+                  `• **${inc.title}** (${inc.id})\n` +
+                  `  Severity: ${inc.severity} | Status: ${inc.status}\n` +
+                  `  Service: ${inc.service} | Assignee: ${inc.assignee}\n` +
+                  `  Created: ${new Date(inc.createdAt).toLocaleString()}\n` +
+                  (inc.resolvedAt ? `  Resolved: ${new Date(inc.resolvedAt).toLocaleString()} (MTTR: ${inc.mttr}min)\n` : '') +
+                  `  Impact: ${inc.impact}\n` +
+                  (inc.rootCause ? `  Root Cause: ${inc.rootCause}\n` : '')
+                ).join('\n'),
+        },
+      ],
+    };
+  }
+
+  private async getCodeReviewMetrics(args: any) {
+    let reviews = [...hrmDatabase.codeReviews];
+
+    if (args.repository) {
+      reviews = reviews.filter(r => r.repository.toLowerCase().includes(args.repository.toLowerCase()));
+    }
+
+    if (args.author) {
+      reviews = reviews.filter(r => r.author === args.author);
+    }
+
+    if (args.reviewer) {
+      reviews = reviews.filter(r => r.reviewers.includes(args.reviewer));
+    }
+
+    if (args.status) {
+      reviews = reviews.filter(r => r.status === args.status);
+    }
+
+    const avgReviewTime = reviews.filter(r => r.reviewTime > 0).reduce((sum, r) => sum + r.reviewTime, 0) / reviews.filter(r => r.reviewTime > 0).length;
+    const avgLinesChanged = Math.round(reviews.reduce((sum, r) => sum + r.linesChanged, 0) / reviews.length);
+
+    const statusBreakdown = reviews.reduce((acc, r) => {
+      acc[r.status] = (acc[r.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `**Code Review Metrics (${reviews.length} reviews)**\n\n` +
+                `**Metrics:**\n` +
+                `• Average Review Time: ${avgReviewTime.toFixed(1)} hours\n` +
+                `• Average Lines Changed: ${avgLinesChanged}\n` +
+                `• Status Breakdown: ${Object.entries(statusBreakdown).map(([s, c]) => `${s}: ${c}`).join(', ')}\n\n` +
+                `**Review Details:**\n` +
+                reviews.map(review => 
+                  `• **${review.title}** (${review.id})\n` +
+                  `  Repository: ${review.repository} | Author: ${review.author}\n` +
+                  `  Reviewers: ${review.reviewers.join(', ')}\n` +
+                  `  Lines Changed: ${review.linesChanged} | Status: ${review.status}\n` +
+                  `  Created: ${new Date(review.createdAt).toLocaleString()}\n` +
+                  (review.mergedAt ? `  Merged: ${new Date(review.mergedAt).toLocaleString()}\n` : '') +
+                  (review.reviewTime > 0 ? `  Review Time: ${review.reviewTime} hours\n` : '')
+                ).join('\n'),
+        },
+      ],
+    };
+  }
+
   async run() {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
-    console.error('HRM MCP Server running on stdio');
+    console.error('Unified HRM & Engineering MCP Server running on stdio');
   }
 }
 
