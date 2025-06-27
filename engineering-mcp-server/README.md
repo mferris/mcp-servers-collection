@@ -2,6 +2,8 @@
 
 A comprehensive Model Context Protocol (MCP) server that provides AI assistants with access to engineering organization data for large-scale engineering teams (8000+ engineers).
 
+**This is the Python implementation** - converted from the original TypeScript version using the MCP Python SDK.
+
 ## Features
 
 ### 8 MCP Tools Available
@@ -77,16 +79,20 @@ Simulates a large engineering organization with:
 ### Installation
 ```bash
 cd engineering-mcp-server
-npm install
+pip install -r requirements.txt
 ```
 
 ### Run the Server
 ```bash
-# Development mode
-npm run dev
+# Using the run script (recommended)
+./run.sh
 
-# Production mode
-npm run start
+# Direct execution
+python src/server.py
+
+# Or make it executable
+chmod +x src/server.py
+./src/server.py
 ```
 
 ### Docker Deployment
@@ -266,13 +272,16 @@ The data reflects real-world enterprise engineering practices:
 ## Development
 
 ### Scripts
-- `npm run build` - Compile TypeScript
-- `npm run start` - Run compiled server  
-- `npm run dev` - Run with auto-reload
+- `python src/server.py` - Run the MCP server directly
+- `python -m src.server` - Run as module (from project root)
 
 ### Environment Variables
-- `NODE_ENV` - Set to 'production' for production builds
-- `LOG_LEVEL` - Logging verbosity (debug/info/warn/error)
+- `PYTHONPATH` - Add project root to Python path if needed
+- `LOG_LEVEL` - Logging verbosity (DEBUG/INFO/WARN/ERROR)
+
+### Python Requirements
+- Python 3.11+ recommended
+- MCP Python SDK (`mcp>=1.0.0`)
 
 ## Security Notes
 
